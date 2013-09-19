@@ -112,12 +112,12 @@ class NodeParser(ast.NodeVisitor):
 def readFile(file_name, function_name="", class_name=""):
     try:
         source_code = [""]
-        with open(file_name, "r") as f1:
-            for line in f1:
+        with open(file_name, "r") as f:
+            for line in f:
                 source_code.append(line)
-        with open(file_name, "r") as f2:
-            node_parser = NodeParser(f2, source_code, function_name, class_name)
-            node_parser.parse_root(f2)
+            f.seek(0)
+            node_parser = NodeParser(f, source_code, function_name, class_name)
+            node_parser.parse_root(f)
             print node_parser.start_line, node_parser.end_line
             print node_parser.getSourceCode()
     except IOError as e:
