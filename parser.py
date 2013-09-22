@@ -1,29 +1,31 @@
 #!/usr/bin/env python
-import sys
-
 import traceback
-import re
 import ast
-import os
-import os.path
 from optparse import OptionParser
+import StringIO
 
 
 class NodeParser(ast.NodeVisitor):
 
-    def __init__(self, file, code_list, function_name="", class_name=""):
-        self._file = file
-        self.source_code = code_list
-        self.source_code_len = len(code_list)-1
-        self.lines_depth = [65535] * (self.source_code_len+1)
+    def __init__(self, source_code="", class_name="", function_name=""):
+        self.source_code = source_code
+        # insert a blank line in order to avoid index +1/-1 operation
+        code_list = [""]
+        fake_file = StringIO.StringIO(source_code)
+        for line in fake_file:
+            code_list.append(line)
+        self.source_code_list = code_list
+        self.source_code_lines = len(code_list)-1
+        self.lines_depth = [65535] * (self.source_code_lines+1)
         self.class_name = class_name
         self.function_name = function_name
         self.terminated = False
         self.start_line = None
         self.end_line = None
+        self.parse_root()
 
-    def parse_root(self, f):
-        tree = ast.parse(f.read())
+    def parse_root(self):
+        tree = ast.parse(self.source_code)
         tree.depth = 0
         tree.class_name = ""
         self.visit(tree)
@@ -31,7 +33,7 @@ class NodeParser(ast.NodeVisitor):
     def generic_visit(self, node):
         if self.terminated:
             return
-        self.markLineDepth(node)
+        self.mark_line_depth(node)
         depth = node.depth
         for field, value in ast.iter_fields(node):
             if isinstance(value, list):
@@ -63,7 +65,7 @@ class NodeParser(ast.NodeVisitor):
         node.class_name = node.name
         if self.class_name and not self.function_name and self.class_name == node.name:
             self.start_line = node.lineno
-            self.end_line = self.getLastLine(node.lineno, node.depth)
+            self.end_line = self.get_last_line(node.lineno, node.depth)
             self.terminated = True
             return
         else:
@@ -78,27 +80,29 @@ class NodeParser(ast.NodeVisitor):
             return
         if self.function_name == node.name:
             self.start_line = node.lineno
-            self.end_line = self.getLastLine(node.lineno, node.depth)
+            self.end_line = self.get_last_line(node.lineno, node.depth)
             self.terminated = True
             return
 
-    def getSourceCode(self):
-        code = self.source_code[self.start_line: self.end_line+1]
+    def get_source_code(self):
+        if not self.start_line or not self.end_line:
+            return None
+        code = self.source_code_list[self.start_line: self.end_line+1]
         return "".join(code)
 
-    def getLastLine(self, line_num, depth):
+    def get_last_line(self, line_num, depth):
         end_line = line_num
-        for idx in xrange(line_num+1, self.source_code_len+1):
+        for idx in xrange(line_num+1, self.source_code_lines+1):
             if self.lines_depth[idx] > depth:
                 end_line = idx
             else:
                 break
         for line in xrange(end_line, line_num, -1):
-            if not self.source_code[end_line].strip(" \r\n\t"):
+            if not self.source_code_list[end_line].strip(" \r\n\t"):
                 end_line = line - 1
         return end_line
 
-    def markLineDepth(self, item):
+    def mark_line_depth(self, item):
         if hasattr(item, "lineno"):
             self.lines_depth[item.lineno] = item.depth
         if hasattr(item, "body"):
@@ -109,17 +113,13 @@ class NodeParser(ast.NodeVisitor):
                     self.lines_depth[node.lineno] = item.depth+1
 
 
-def readFile(file_name, function_name="", class_name=""):
+def read_file(file_name, class_name="", function_name=""):
     try:
-        source_code = [""]
         with open(file_name, "r") as f:
-            for line in f:
-                source_code.append(line)
-            f.seek(0)
-            node_parser = NodeParser(f, source_code, function_name, class_name)
-            node_parser.parse_root(f)
-            print node_parser.start_line, node_parser.end_line
-            print node_parser.getSourceCode()
+            node_parser = NodeParser(f.read(), class_name, function_name)
+            node_parser.parse_root()
+        print node_parser.get_source_code()
+        return node_parser
     except IOError as e:
         print e
         return {"success": False, "error": "Cannot open %s" % file_name}
@@ -132,12 +132,12 @@ if __name__ == "__main__":
 
     # for debug only
     args = ["/home/ec2-user/django/django/forms/fields.py"]
-    # options.function_name = "validate"
-    options.class_name = "DecimalField"
+    options.function_name = ""
+    options.class_name = "IPAddressField"
 
     if len(args) == 0:
         raise Exception("File name is required!")
     if not options.class_name and not options.function_name:
         raise Exception("Function or Class is required!")
 
-    readFile(file_name=args[0], class_name=options.class_name, function_name=options.function_name)
+    read_file(file_name=args[0], function_name=options.function_name, class_name=options.class_name)
