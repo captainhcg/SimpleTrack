@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import sys
 import re
 import commands
 from optparse import OptionParser

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import traceback
 import ast
 from optparse import OptionParser
 import StringIO
