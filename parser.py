@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import traceback
 import ast
 from optparse import OptionParser
 import StringIO
@@ -129,11 +128,6 @@ if __name__ == "__main__":
     parser.add_option("-f", "--function", dest="function_name", default="")
     parser.add_option("-c", "--class", dest="class_name", default="")
     options, args = parser.parse_args()
-
-    # for debug only
-    args = ["/home/ec2-user/django/django/forms/fields.py"]
-    options.function_name = ""
-    options.class_name = "IPAddressField"
 
     if len(args) == 0:
         raise Exception("File name is required!")
