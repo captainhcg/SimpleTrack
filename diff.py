@@ -20,7 +20,8 @@ def execute(cmd, seperator=None):
 
 def get_revisions(file_name):
     """get the revision list of given file"""
-    revs = execute('git rev-list HEAD %s' % file_name, "\n")
+    cmd = 'git rev-list HEAD %s' % file_name
+    revs = execute(cmd, "\n")
     return revs
 
 
@@ -46,10 +47,12 @@ def get_history(revisions, file_name, class_name="", function_name=""):
             last_version = Code(r, class_name=class_name, function_name=function_name)
             codes.append(last_version)
         else:
-            changed = compare_versions(last_version.revision.code, r.code, last_version.start_line, last_version.end_line)
+            changed = compare_versions(last_version.revision.code, r.code, last_version.start_line or 1, last_version.end_line or 65535)
             if changed:
-                last_version = Code(r, class_name=class_name, function_name=function_name)
-                codes.append(last_version)
+                c = Code(r, class_name=class_name, function_name=function_name)
+                if c.get_source_code() != last_version.get_source_code():
+                    codes.append(c)
+                last_version = c
     return codes
 
 
@@ -59,7 +62,7 @@ def get_code_revisions(project_path, file_name, class_name="", function_name="")
     for rev in get_revisions(file_name):
         revisions.append(Revision(commit=rev, file_name=file_name))
 
-    return get_history(revisions, file_name, class_name=options.class_name, function_name="clean")
+    return get_history(revisions, file_name, class_name=class_name, function_name=function_name)
 
 
 class Revision(object):
@@ -71,7 +74,11 @@ class Revision(object):
     @property
     def code(self):
         if not hasattr(self, "_code"):
-            self._code = execute('git show %s:%s' % (self.commit, self.file_name))
+            try:
+                self._code = execute('git show %s:%s' % (self.commit, self.file_name))
+            except Exception as e:
+                print e
+                self._code = ""
         return self._code
 
 
@@ -85,6 +92,14 @@ class Code(object):
         self.end_line = None
         if self.revision:
             self.parse_code()
+
+    def as_dict(self):
+        return {
+            "commit": self.revision.commit,
+            "code": self.get_source_code(),
+            "start_line": self.start_line,
+            "end_line": self.end_line,
+        }
 
     def parse_code(self):
         assert self.revision, "No revision provided"
