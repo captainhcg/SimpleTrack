@@ -122,15 +122,15 @@ if __name__ == "__main__":
 
     options, args = parser.parse_args()
 
-    root_path = '/home/ec2-user/django'
+    root_path = '/Users/che/Documents/drchrono-web/'
     # for debug only
-    args = ["django/forms/fields.py"]
+    args = ["chronometer/models_base.py"]
     file_name = args[0]
     # options.function_name = "validate"
-    class_name = options.class_name = "MultiValueField"
-    function_name = options.function_name
+    class_name = options.class_name = ""
+    function_name = options.function_name = "getAllAppointmentsinTimeRange"
 
-    print len(get_code_revisions(root_path, file_name, class_name="MultiValueField", function_name="clean"))
+    print len(get_code_revisions(root_path, file_name, class_name, function_name))
 
     if len(args) == 0:
         raise Exception("File name is required!")
