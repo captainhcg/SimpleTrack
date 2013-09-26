@@ -17,13 +17,6 @@ def execute(cmd, seperator=None):
             return cmd_output.split(seperator)
 
 
-def get_revisions(file_name):
-    """get the revision list of given file"""
-    cmd = 'git rev-list HEAD %s' % file_name
-    revs = execute(cmd, "\n")
-    return revs
-
-
 def compare_versions(file, v1, v2, start_line, end_line):
     cmd = "git diff %s %s %s | grep -o '@@ [-+]\w*,\w*' | grep -o '\w*,\w*'" % (v1, v2, file)
     for pair in execute(cmd, '\n'):
@@ -50,7 +43,7 @@ def get_history(revisions, file_name, class_name="", function_name=""):
             last_version = Code(r, class_name=class_name, function_name=function_name)
             codes.append(last_version)
         else:
-            changed = compare_versions(file_name, last_version.revision.commit, r.commit, last_version.start_line or 1, last_version.end_line or 65535)
+            changed = compare_versions(file_name, last_version.revision.hash, r.hash, last_version.start_line or 1, last_version.end_line or 65535)
             if changed:
                 c = Code(r, class_name=class_name, function_name=function_name)
                 if c.get_source_code() != last_version.get_source_code():
@@ -62,28 +55,52 @@ def get_history(revisions, file_name, class_name="", function_name=""):
 
 
 def get_code_revisions(project_path, file_name, class_name="", function_name=""):
+    """get the revision list of given file"""
     os.chdir(project_path)
     revisions = []
-    for rev in get_revisions(file_name):
-        revisions.append(Revision(commit=rev, file_name=file_name))
-    return get_history(revisions, file_name, class_name=class_name, function_name=function_name)
+    cmd = """git rev-list --abbrev-commit --date="short" --pretty=format:"date %ad%nauthor %an%nsubject %s%n" HEAD """ + file_name
+    revs_data = execute(cmd, "\n")
+    revs_list = []
+    data = {}
+    for line in revs_data:
+        if not line:
+            r = Revision(hash=data['commit'], file_name=file_name)
+            for k, v in data.items():
+                setattr(r, k, v)
+            revs_list.append(r)
+            data = {}
+        else:
+            info = line.split(" ", 1)
+            data[info[0]] = info[1]
+    return get_history(revs_list, file_name, class_name=class_name, function_name=function_name)
 
 
 class Revision(object):
     """revision of file"""
-    def __init__(self, commit="", file_name=""):
-        self.commit = commit
+    def __init__(self, hash="", file_name=""):
+        self.hash = hash
         self.file_name = file_name
+        self.author = ""
+        self.date = ""
+        self.subject = ""
 
     @property
     def code(self):
         if not hasattr(self, "_code"):
             try:
-                self._code = execute('git show %s:%s' % (self.commit, self.file_name))
+                self._code = execute('git show %s:%s' % (self.hash, self.file_name))
             except Exception as e:
                 print e
                 self._code = ""
         return self._code
+
+    def as_dict(self):
+        return {
+            "author": self.author,
+            "date": self.date,
+            "subject": self.subject,
+            "hash": self.commit
+        }
 
 
 class Code(object):
@@ -99,7 +116,7 @@ class Code(object):
 
     def as_dict(self):
         return {
-            "commit": self.revision.commit,
+            "hash": self.revision.hash,
             "code": self.get_source_code(),
             "start_line": self.start_line,
             "end_line": self.end_line,
@@ -113,10 +130,13 @@ class Code(object):
         self.source_code_list = np.source_code_list
 
     def get_source_code(self):
-        if not self.start_line or not self.end_line:
-            return None
-        code = self.source_code_list[self.start_line: self.end_line+1]
-        return "".join(code)
+        if not hasattr(self, "_code"):
+            if not self.start_line or not self.end_line:
+                self._code = None
+            else:
+                code = self.source_code_list[self.start_line: self.end_line+1]
+                self._code = "".join(code)
+        return self._code
 
 if __name__ == "__main__":
     parser = OptionParser()
