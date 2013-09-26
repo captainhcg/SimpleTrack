@@ -46,7 +46,6 @@ def get_history(revisions, file_name, class_name="", function_name=""):
         # time out in 3 seconds
         if time.time() - start_time > 3.0:
             break
-        print r
         if last_version is None:
             last_version = Code(r, class_name=class_name, function_name=function_name)
             codes.append(last_version)
@@ -57,6 +56,8 @@ def get_history(revisions, file_name, class_name="", function_name=""):
                 if c.get_source_code() != last_version.get_source_code():
                     codes.append(c)
                 last_version = c
+        if len(codes) >= 10:
+            break
     return codes
 
 
