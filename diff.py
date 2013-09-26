@@ -25,7 +25,7 @@ def get_revisions(file_name):
 
 
 def compare_versions(file, v1, v2, start_line, end_line):
-    cmd = "git diff %s %s %s | grep -o '@@ [-+]\d*,\d*' | grep -o '\d*,\d*'" % (v1, v2, file)
+    cmd = "git diff %s %s %s | grep -o '@@ [-+]\w*,\w*' | grep -o '\w*,\w*'" % (v1, v2, file)
     for pair in execute(cmd, '\n'):
         if not pair:
             continue
@@ -46,6 +46,7 @@ def get_history(revisions, file_name, class_name="", function_name=""):
         # time out in 3 seconds
         if time.time() - start_time > 3.0:
             break
+        print r
         if last_version is None:
             last_version = Code(r, class_name=class_name, function_name=function_name)
             codes.append(last_version)

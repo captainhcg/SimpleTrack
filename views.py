@@ -27,7 +27,6 @@ def index():
         else:
             class_name = ""
 
-        print  "%s/%s.py" % (module.path, module.name)
         code_versions = get_code_revisions(project_path, "%s/%s.py" % (module.path, module.name), class_name, function_name)
         result = []
         for c in code_versions:
