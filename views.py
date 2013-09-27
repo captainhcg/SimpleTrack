@@ -40,7 +40,10 @@ def index():
         for c in code_versions:
             data = c.as_dict()
             data['revision'] = c.revision.as_dict()
-            data["highlighted"] = highlight(data['code'], lexer, formatter)
+            if data['code'] is None:
+                data["highlighted"] = None
+            else:
+                data["highlighted"] = highlight(data['code'], lexer, formatter)
             result.append(data)
             last_version = c
     except:

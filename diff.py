@@ -7,6 +7,9 @@ from parser import NodeParser
 
 
 def execute(cmd, seperator=None):
+    """execute command"""
+    # return a list if seperator is provided
+    # otherwise return a string
     cmd_status, cmd_output = commands.getstatusoutput(cmd)
     if cmd_status % 256 != 0:
         raise Exception("%s: signal: %s" (cmd_output, cmd_status))
@@ -18,6 +21,10 @@ def execute(cmd, seperator=None):
 
 
 def compare_versions(file, v1, v2, start_line, end_line):
+    """compare code sections"""
+    # file: relative path to git repo
+    # v1 and v2: commit, hash
+    # start_line, end_line: denote the code section in v1 
     cmd = "git diff %s %s %s | grep -o '@@ [-+]\w*,\w*' | grep -o '\w*,\w*'" % (v1, v2, file)
     for pair in execute(cmd, '\n'):
         if not pair:
@@ -25,32 +32,42 @@ def compare_versions(file, v1, v2, start_line, end_line):
         change = pair.split(",")
         altered_start_line = int(change[0])
         altered_end_line = int(change[1]) + altered_start_line
-        if (start_line-altered_start_line)*(end_line-altered_end_line) < 0:
+        if (start_line-altered_start_line)*(end_line-altered_start_line) <= 0:
+            # the code section in v1 is changed in v2
             return True
     return False
 
 
 def get_history(revisions, file_name, class_name="", function_name=""):
     """get a list of code sections that given code section is changed"""
-    last_version = None
+    current_code = None
+    last_revision = None
     codes = []
     start_time = time.time()
+    terminated = False
     for r in revisions:
-        # time out in 3 seconds
-        if time.time() - start_time > 3.0:
+        # time out in 10 seconds
+        if time.time() - start_time > 10.0:
+            terminated = True
             break
-        if last_version is None:
-            last_version = Code(r, class_name=class_name, function_name=function_name)
-            codes.append(last_version)
+        if last_revision is None:
+            last_revision = r
+            current_code = Code(r, class_name=class_name, function_name=function_name)
         else:
-            changed = compare_versions(file_name, last_version.revision.hash, r.hash, last_version.start_line or 1, last_version.end_line or 65535)
+            changed = compare_versions(file_name, current_code.revision.hash, r.hash, current_code.start_line or 1, current_code.end_line or 65535)
             if changed:
-                c = Code(r, class_name=class_name, function_name=function_name)
-                if c.get_source_code() != last_version.get_source_code():
-                    codes.append(c)
-                last_version = c
-        if len(codes) >= 10:
+                this_code = Code(r, class_name=class_name, function_name=function_name)
+                if this_code.get_source_code() != current_code.get_source_code():
+                    codes.append(Code(last_revision, class_name=class_name, function_name=function_name))
+                    current_code = this_code
+            last_revision = r
+        if len(codes) >= 20:
+            terminated = True
             break
+    if not terminated and last_revision:
+        if (codes and last_revision.hash != codes[-1].revision.hash) or not codes:
+            codes.append(Code(last_revision, class_name=class_name, function_name=function_name))
+
     return codes
 
 
@@ -91,7 +108,7 @@ class Revision(object):
                 self._code = execute('git show %s:%s' % (self.hash, self.file_name))
             except Exception as e:
                 print e
-                self._code = ""
+                self._code = None
         return self._code
 
     def as_dict(self):
@@ -137,6 +154,7 @@ class Code(object):
                 code = self.source_code_list[self.start_line: self.end_line+1]
                 self._code = "".join(code)
         return self._code
+
 
 if __name__ == "__main__":
     parser = OptionParser()
