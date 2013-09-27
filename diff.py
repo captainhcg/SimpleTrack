@@ -46,8 +46,8 @@ def get_history(revisions, file_name, class_name="", function_name=""):
     start_time = time.time()
     terminated = False
     for r in revisions:
-        # time out in 10 seconds
-        if time.time() - start_time > 10.0:
+        # time out in 3 seconds
+        if time.time() - start_time > 3.0:
             terminated = True
             break
         if last_revision is None:
