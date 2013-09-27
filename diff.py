@@ -32,7 +32,7 @@ def compare_versions(file, v1, v2, start_line, end_line):
         change = pair.split(",")
         altered_start_line = int(change[0])
         altered_end_line = int(change[1]) + altered_start_line
-        if (start_line-altered_start_line)*(end_line-altered_start_line) <= 0:
+        if (start_line-altered_end_line)*(end_line-altered_start_line) <= 0:
             # the code section in v1 is changed in v2
             return True
     return False
