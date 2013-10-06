@@ -135,17 +135,22 @@ class Code(object):
         return {
             "hash": self.revision.hash,
             "code": self.get_source_code(),
-            "start_line": self.start_line,
+            "start_line": self.start_line, 
             "end_line": self.end_line,
         }
 
     def parse_code(self):
         assert self.revision, "No revision provided"
-        np = NodeParser(self.revision.code, self.class_name, self.function_name)
-        self.start_line = np.start_line
-        self.end_line = np.end_line
-        self.source_code_list = np.source_code_list
-
+        try:
+            np = NodeParser(self.revision.code, self.class_name, self.function_name)
+            self.start_line = np.start_line
+            self.end_line = np.end_line
+            self.source_code_list = np.source_code_list
+        except SyntaxError:
+            self.start_line = 0
+            self.end_line = 0
+            self.source_code_list = []
+ 
     def get_source_code(self):
         if not hasattr(self, "_code"):
             if not self.start_line or not self.end_line:
