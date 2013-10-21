@@ -22,6 +22,7 @@ def index():
         class_id = request.args.get("class_id", None)
         function_id = request.args.get("function_id", None)
         module = g.session.query(Module).get(module_id)
+        last_hash = request.args.get('last_hash', None)
         if function_id:
             function_name = g.session.query(Function).get(function_id).name
         else:
@@ -31,7 +32,7 @@ def index():
         else:
             class_name = ""
 
-        code_versions = get_code_revisions(project_path, "%s/%s.py" % (module.path, module.name), class_name, function_name)
+        code_versions, terminated = get_code_revisions(project_path, "%s/%s.py" % (module.path, module.name), class_name, function_name, last_hash=last_hash)
         result = []
         last_version = None
         lexer = PythonLexer()
@@ -49,4 +50,4 @@ def index():
     except:
         traceback.print_exc()
 
-    return jsonify({"data": result})
+    return jsonify({"data": result, "terminated": terminated})

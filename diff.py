@@ -44,11 +44,11 @@ def get_history(revisions, file_name, class_name="", function_name=""):
     last_revision = None
     codes = []
     start_time = time.time()
-    terminated = False
+    terminated = ""
     for r in revisions:
         # time out in 3 seconds
-        if time.time() - start_time > 3.0:
-            terminated = True
+        if time.time() - start_time > 3.0 or len(codes) >= 20:
+            terminated = last_revision.hash if last_revision else "HEAD"
             break
         if last_revision is None:
             last_revision = r
@@ -61,21 +61,21 @@ def get_history(revisions, file_name, class_name="", function_name=""):
                     codes.append(Code(last_revision, class_name=class_name, function_name=function_name))
                     current_code = this_code
             last_revision = r
-        if len(codes) >= 20:
-            terminated = True
-            break
+
     if not terminated and last_revision:
         if (codes and last_revision.hash != codes[-1].revision.hash) or not codes:
             codes.append(Code(last_revision, class_name=class_name, function_name=function_name))
 
-    return codes
+    return codes, terminated
 
 
-def get_code_revisions(project_path, file_name, class_name="", function_name=""):
+def get_code_revisions(project_path, file_name, class_name="", function_name="", last_hash=None):
     """get the revision list of given file"""
     os.chdir(project_path)
+    last_hash = last_hash or 'HEAD'
     revisions = []
-    cmd = """git rev-list --abbrev-commit --date="short" --pretty=format:"date %ad%nauthor %an%nsubject %s%n" HEAD """ + file_name
+    cmd = """git rev-list --abbrev-commit --date="short" --pretty=format:"date %ad%nauthor %an%nsubject %s%n" """ + last_hash + " " + file_name
+    print cmd
     revs_data = execute(cmd, "\n")
     revs_list = []
     data = {}
@@ -150,7 +150,7 @@ class Code(object):
             self.start_line = 0
             self.end_line = 0
             self.source_code_list = []
- 
+
     def get_source_code(self):
         if not hasattr(self, "_code"):
             if not self.start_line or not self.end_line:
